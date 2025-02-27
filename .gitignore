@@ -9,3 +9,6 @@ __pycache__/
 # Ignore environment-specific files
 .env
 .envrc
+
+# Ignorer le dossier notebooks
+notebooks/
