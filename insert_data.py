@@ -30,7 +30,7 @@ hourly_data = load_json_from_s3(bucket_name, hourly_data_file_key)
 
 #%%
 #Connexion à MongoDB
-client = MongoClient(host="mongodb", port=27017) #connexion au serveur mongodb
+client = MongoClient("mongodb://mongodb1:27017,mongodb2:27017,mongodb3:27017/?replicaSet=rs0") #connexion au serveur mongodb
 db = client["weather_data"]  # Nom de la base de données
 
 #%%
