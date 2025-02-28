@@ -4,6 +4,7 @@ import pandas as pd
 from io import StringIO
 import json
 
+
 # %% [markdown]
 # # STATIONS
 
@@ -76,7 +77,7 @@ weather_stations = [
 stations.extend(weather_stations)
 
 # %%
-# Convertir hourly_data en format JSON
+# Convertir station en format JSON
 stations_json = json.dumps(stations, indent=4)
 
 s3_file_key = "data_transformed/stations.json"
