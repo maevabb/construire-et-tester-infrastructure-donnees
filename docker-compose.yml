@@ -1,10 +1,45 @@
-version: '3.8'
-services:
-  myapp:
-    build: .
+services: 
+  mongodb:
+    image: mongo:8.0.4
+    container_name: mongodb
+    ports: 
+      - "27017:27017"
+    volumes: 
+      - mongo_data:/data/db
+    networks:
+      - my_network
+    restart: always
+
+  data_pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: data_pipeline
+    depends_on:
+      - mongodb
     env_file:
-      - .env  # Charge les variables d'environnement depuis .env
+      - .env
     environment:
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_REGION=${AWS_REGION}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+      - MONGO_HOST=mongodb
+      - MONGO_PORT=27017
+    volumes:
+      - ./:/app
+    networks:
+      - my_network
+    command: >
+      sh -c "
+      poetry run python transform_data.py &&
+      poetry run python insert_data.py
+      "
+    restart: no
+
+volumes:
+  mongo_data:
+
+networks:
+  my_network:
+    driver: bridge
