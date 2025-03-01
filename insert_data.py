@@ -30,7 +30,7 @@ hourly_data = load_json_from_s3(bucket_name, hourly_data_file_key)
 
 #%%
 #Connexion à MongoDB
-client = MongoClient("mongodb://mongodb1:27017,mongodb2:27017,mongodb3:27017/?replicaSet=rs0") #connexion au serveur mongodb
+client = MongoClient(host="13.39.110.243", port=27017) #connexion au serveur mongodb
 db = client["weather_data"]  # Nom de la base de données
 
 #%%
@@ -123,7 +123,7 @@ def insert_documents(collection, data, collection_name):
             rejected_docs.append(doc)
     
     success_rate = (inserted_count / total_docs) * 100 if total_docs else 0
-    print(f"{collection_name.upper()}: ")
+    print(f"\n{collection_name.upper()}: ")
     print(f"Total de documents dans le fichier : {total_docs}")
     print(f"Nombre de documents insérés : {inserted_count}")
     print(f"Nombre de documents rejetés : {len(rejected_docs)}")
@@ -139,4 +139,3 @@ def insert_documents(collection, data, collection_name):
 
 insert_documents(stations_collection, stations_data, "stations")
 insert_documents(hourly_data_collection, hourly_data, "hourly_data")
-# %%
