@@ -78,6 +78,9 @@ stations.extend(weather_stations)
 
 # %%
 # Convertir station en format JSON
+
+stations_len = len(stations)
+
 stations_json = json.dumps(stations, indent=4)
 
 s3_file_key = "data_transformed/stations.json"
@@ -86,6 +89,7 @@ s3_file_key = "data_transformed/stations.json"
 s3_client.put_object(Body=stations_json, Bucket=bucket_name, Key=s3_file_key)
 
 print(f"Le fichier stations JSON a été téléchargé sur le bucket S3 : {bucket_name}/{s3_file_key}")
+print(f"Il contient: {stations_len} documents")
 
 # %% [markdown]
 # # HOURLY DATA
@@ -444,6 +448,59 @@ infoclimat["humidity"] = infoclimat["humidity"].astype(int)
 
 infoclimat["pressure"] = infoclimat["pressure"].apply(lambda x: round(x, 2))
 
+# %%
+# Qualité des données : taux de NaN dans les documents
+
+# Concaténer les DataFrames
+dfs = [weather_fr, weather_be, infoclimat]
+df_hourly_data = pd.concat(dfs, ignore_index=True, join='outer')
+
+def calculate_nan(df):
+    '''
+    Calcule le nombre et % de NaN dans un df par colonne
+    '''
+    # Compte les valeurs None
+    nan_counts = df.isnull().sum()
+
+    # Compte les valeurs string "NaN", "nan", "none"
+    str_nan_counts = df.isin(["NaN", "nan", "none"]).sum()
+
+    # Compte les valeurs vides
+    empty_counts = (df == "").sum()
+
+    # Compte les valeurs contenant uniquement des espaces
+    space_counts = {}
+    for col in (df.select_dtypes(include='object')).columns : 
+        space_counts[col] = df[col].str.isspace().sum()
+    space_counts = pd.Series(space_counts)
+
+    # Création du DataFrame de toutes les données NaN
+    merged_nan_counts = pd.DataFrame({
+        'NaN counts': nan_counts.reindex(df.columns, fill_value=0),
+        'Str nan counts': str_nan_counts.reindex(df.columns, fill_value=0),
+        'Empty counts': empty_counts.reindex(df.columns, fill_value=0),
+        'Space counts': space_counts.reindex(df.columns, fill_value=0),
+    })
+
+
+
+    # Ajout d'une colonne total de NaN
+    merged_nan_counts['Total NaN'] = merged_nan_counts.sum(axis=1)
+
+    # Ajout % de NaN
+    merged_nan_counts['% NaN'] = round(merged_nan_counts['Total NaN'] / len(df) * 100, 2)
+
+    #Suppression détails NaN counts
+    merged_nan_counts = merged_nan_counts.drop(columns=['NaN counts','Str nan counts', 'Empty counts', 'Space counts'])
+
+    # Retourner le DataFrame
+    return merged_nan_counts
+
+df_hourly_data_nan = calculate_nan(df_hourly_data)
+
+print("\nNombre de NaN :")
+print(df_hourly_data_nan)
+
 # %% [markdown]
 # ## Extraction json
 
@@ -454,6 +511,8 @@ infoclimat_data = infoclimat.to_dict(orient='records')
 
 hourly_data =  weather_fr_data + weather_be_data + infoclimat_data
 
+hourly_data_len = len(hourly_data)
+
 hourly_data_json = json.dumps(hourly_data, indent=4)
 
 s3_file_key = "data_transformed/hourly_data.json"
@@ -461,4 +520,7 @@ s3_file_key = "data_transformed/hourly_data.json"
 # Télécharger le fichier sur S3
 s3_client.put_object(Body=hourly_data_json, Bucket=bucket_name, Key=s3_file_key)
 
-print(f"Le fichier hourly_data JSON a été téléchargé sur le bucket S3 : {bucket_name}/{s3_file_key}")
+print(f"\nLe fichier hourly_data JSON a été téléchargé sur le bucket S3 : {bucket_name}/{s3_file_key}")
+print(f"Il contient: {hourly_data_len } documents")
+
+# %%
