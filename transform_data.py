@@ -85,7 +85,7 @@ s3_file_key = "data_transformed/stations.json"
 # Télécharger le fichier sur S3
 s3_client.put_object(Body=stations_json, Bucket=bucket_name, Key=s3_file_key)
 
-print(f"Le fichier JSON a été téléchargé sur le bucket S3 : {bucket_name}/{s3_file_key}")
+print(f"Le fichier stations JSON a été téléchargé sur le bucket S3 : {bucket_name}/{s3_file_key}")
 
 # %% [markdown]
 # # HOURLY DATA
@@ -461,4 +461,4 @@ s3_file_key = "data_transformed/hourly_data.json"
 # Télécharger le fichier sur S3
 s3_client.put_object(Body=hourly_data_json, Bucket=bucket_name, Key=s3_file_key)
 
-print(f"Le fichier JSON a été téléchargé sur le bucket S3 : {bucket_name}/{s3_file_key}")
+print(f"Le fichier hourly_data JSON a été téléchargé sur le bucket S3 : {bucket_name}/{s3_file_key}")
