@@ -14,72 +14,78 @@ s3 = boto3.client('s3')
 
 # Détails du bucket et des fichiers JSON
 bucket_name = "p8-airbyte-greenandcoop"
-stations_file_key = "data_transformed/stations.json"  # Fichier JSON des stations
-hourly_data_file_key = "data_transformed/hourly_data.json"  # Fichier JSON des données horaires
+weather_data_file_key = "data_transformed/weather_data.json" 
 
 #%%
 # Fonction pour charger les données depuis S3 dans un objet Python
 def load_json_from_s3(bucket_name, file_key):
     obj = s3.get_object(Bucket=bucket_name, Key=file_key)
-    data = obj['Body'].read().decode('utf-8')  # Lire et décoder en UTF-8
-    return json.loads(data)  # Convertir en objet Python (dictionnaire ou liste)
+    data = obj['Body'].read().decode('utf-8')  
+    return json.loads(data)  
 
 # Charger les données des fichiers JSON
-stations_data = load_json_from_s3(bucket_name, stations_file_key)
-hourly_data = load_json_from_s3(bucket_name, hourly_data_file_key)
+weather_data = load_json_from_s3(bucket_name, weather_data_file_key)
 
 #%%
 #Connexion à MongoDB
 client = MongoClient(host="13.39.110.243", port=27017) #connexion au serveur mongodb
-db = client["weather_data"]  # Nom de la base de données
+db = client["weather_db"]  # Nom de la base de données
 
 #%%
 # Définition des schémas
-stations_schema = {
-    "validator": {
-        "$jsonSchema": {
-            "bsonType": "object",
-            "required": ["id_station", "name", "latitude", "longitude", "elevation"],
-            "properties": {
-                "id_station": {"bsonType": "string"},
-                "name": {"bsonType": "string"},
-                "latitude": {"bsonType": "double", "minimum": -90, "maximum": 90},
-                "longitude": {"bsonType": "double", "minimum": -180, "maximum": 180},
-                "elevation": {"bsonType": "int", "minimum": 0},
-                "city": {"bsonType": "string"},
-                "state": {"bsonType": "string"},
-                "hardware": {"bsonType": "string"},
-                "software": {"bsonType": "string"}
-            }
-        }
-    }
-}
-
-hourly_data_schema = {
+weather_data_schema = {
     "validator": {
         "$jsonSchema": {
             "bsonType": "object",
             "required": ["id_station", "datetime"],
             "properties": {
                 "id_station": {"bsonType": "string"},
+                "station_info": {
+                    "bsonType": "object",
+                    "properties": {
+                        "name": {"bsonType": "string"},
+                        "latitude": {"bsonType": "double", "minimum": -90, "maximum": 90},
+                        "longitude": {"bsonType": "double", "minimum": -180, "maximum": 180},
+                        "elevation": {"bsonType": "int", "minimum": 0},
+                        "city": {"bsonType": "string"},
+                        "state": {"bsonType": "string"},
+                        "type": {"bsonType": ["string", "null"]},
+                        "hardware": {"bsonType": ["string", "null"]},
+                        "software": {"bsonType": ["string", "null"]},
+                        "license": {
+                            "bsonType": "object",
+                            "properties": {
+                                "license": {"bsonType": ["string", "null"]},
+                                "url": {"bsonType": ["string", "null"]},
+                                "source": {"bsonType": ["string", "null"]},
+                                "metadonnees": {"bsonType": ["string", "null"]},
+                            }
+                        }
+                    }
+                },
                 "datetime": {"bsonType": "string"},
-                "temperature": {"bsonType": "double"},
-                "pressure": {"bsonType": "double"},
-                "humidity": {"bsonType": "int", "minimum": 0, "maximum": 100},
-                "dew_point": {"bsonType": "double"},
-                "visibility": {"bsonType": ["double", "null"], "minimum": 0},
-                "wind_speed": {"bsonType": "double", "minimum": 0},
-                "wind_gust": {"bsonType": ["double", "null"], "minimum": 0},
-                "wind_direction": {"bsonType": ["double", "null"], "minimum": 0, "maximum": 337.5},
-                "precip_1h": {"bsonType": ["double", "null"], "minimum": 0},
-                "precip_3h": {"bsonType": ["double", "null"], "minimum": 0},
-                "precip_accum": {"bsonType": ["double", "null"], "minimum": 0},
-                "precip_rate": {"bsonType": ["double", "null"], "minimum": 0},
-                "solar": {"bsonType": "double", "minimum": 0},
-                "uv": {"bsonType": "int", "minimum": 0, "maximum": 11},
-                "snow_depth": {"bsonType": ["double", "null"], "minimum": 0},
-                "nebulosity": {"bsonType": ["double", "null"], "minimum": 0},
-                "weather_wmo": {"bsonType": ["double", "null"], "minimum": 0}
+                "weather_data": {
+                    "bsonType": "object",
+                    "properties": {
+                        "temperature": {"bsonType": "double"},
+                        "pressure": {"bsonType": "double"},
+                        "humidity": {"bsonType": "int", "minimum": 0, "maximum": 100},
+                        "dew_point": {"bsonType": "double"},
+                        "visibility": {"bsonType": ["double", "null"], "minimum": 0},
+                        "wind_speed": {"bsonType": "double", "minimum": 0},
+                        "wind_gust": {"bsonType": ["double", "null"], "minimum": 0},
+                        "wind_direction": {"bsonType": ["double", "null"], "minimum": 0, "maximum": 337.5},
+                        "precip_1h": {"bsonType": ["double", "null"], "minimum": 0},
+                        "precip_3h": {"bsonType": ["double", "null"], "minimum": 0},
+                        "precip_accum": {"bsonType": ["double", "null"], "minimum": 0},
+                        "precip_rate": {"bsonType": ["double", "null"], "minimum": 0},
+                        "solar": {"bsonType": ["double", "null"], "minimum": 0},
+                        "uv": {"bsonType": ["int", "null"], "minimum": 0, "maximum": 11},
+                        "snow_depth": {"bsonType": ["double", "null"], "minimum": 0},
+                        "nebulosity": {"bsonType": ["double", "null"], "minimum": 0},
+                        "weather_wmo": {"bsonType": ["double", "null"], "minimum": 0}
+                    }
+                }
             }
         }
     }
@@ -87,26 +93,13 @@ hourly_data_schema = {
 
 #%%
 # Suppression des collections existantes
-db.drop_collection("stations")
-db.drop_collection("hourly_data")
-
-# Création des collections avec validation
-db.create_collection("stations", **stations_schema)
-db.create_collection("hourly_data", **hourly_data_schema)
-
-stations_collection = db["stations"]  
-hourly_data_collection = db["hourly_data"]
+db.drop_collection("weather_data")
 
 #%%
-# Vérifier et corriger les valeurs NaN en None dans les champs numériques
-for document in hourly_data:
-# Liste des champs numériques à vérifier
-    numeric_fields = ['wind_direction', 'temperature', 'pressure', 'humidity', 'dew_point', 'visibility', 'wind_speed', 'wind_gust', 'precip_1h', 'precip_3h', 'snow_depth', 'nebulosity', 'weather_wmo']
+# Création de la collection avec validation
+db.create_collection("weather_data", **weather_data_schema)
 
-    # Vérifier et corriger les valeurs NaN pour chaque champ numérique
-    for field in numeric_fields:
-        if isinstance(document.get(field), float) and document[field] != document[field]:  # Vérifier NaN
-            document[field] = None
+weather_data_collection = db["weather_data"] 
 
 #%%
 def insert_documents(collection, data, collection_name):
@@ -137,5 +130,5 @@ def insert_documents(collection, data, collection_name):
     
     return inserted_count, len(rejected_docs)
 
-insert_documents(stations_collection, stations_data, "stations")
-insert_documents(hourly_data_collection, hourly_data, "hourly_data")
+insert_documents(weather_data_collection, weather_data, "weather_data")
+# %%

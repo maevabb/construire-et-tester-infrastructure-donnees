@@ -1,6 +1,7 @@
 # %%
 import boto3
 import pandas as pd
+import numpy as np
 from io import StringIO
 import json
 
@@ -13,10 +14,9 @@ import json
 bucket_name = "p8-airbyte-greenandcoop"
 s3_client = boto3.client("s3")
 
+# Chargement des données
 response = s3_client.get_object(Bucket=bucket_name, Key="GreenAndCoop InfoClimat/infoclimat/2025_02_13_1739448920127_0.jsonl")
-
 json_content = response["Body"].read().decode("utf-8")
-
 data = [json.loads(line) for line in json_content.splitlines()]
 
 # Extraire les données imbriquées sous "_airbyte_data" et "stations"
@@ -24,72 +24,76 @@ stations = [station for entry in data for station in entry["_airbyte_data"]["sta
 
 
 # %%
+# Transformation des données stations
 for doc in stations:
     doc["id_station"] = doc.pop("id")  # Renommer "id" en "id_station"
     doc["city"] = doc["name"]  # Ajouter un champ "city"
     doc["state"] = "France"  # Ajouter un champ "state"
-
-# %%
-# Réorganisation des champs
-
-for i, doc in enumerate(stations):
-    stations[i] = {
-        "id_station": doc["id_station"],
-        "name": doc["name"],
-        "latitude": doc["latitude"],
-        "longitude": doc["longitude"],
-        "elevation": doc["elevation"],
-        "city": doc["city"],
-        "state": doc["state"],
-        "type": doc["type"],
-        "license": doc["license"],
+    doc["station_info"] = {
+        "name": doc.pop("name"),
+        "latitude": doc.pop("latitude"),
+        "longitude": doc.pop("longitude"),
+        "elevation": doc.pop("elevation"),
+        "city": doc.pop("city"),
+        "state": doc.pop("state"),
+        "type": doc.pop("type"),
+        "hardware": doc.get("hardware", None),
+        "software": doc.get("software", None),
+        "license": {
+            "license": doc.get("license", {}).pop("license", None),
+            "url": doc.get("license", {}).pop("url", None),
+            "source": doc.get("license", {}).pop("source", None),
+            "metadonnees": doc.pop("license", {}).pop("metadonnees", None)
+        }
     }
 
-
 # %%
-#Ajout des documents avec les metadonnees de weather_underground
-
+# Ajout des stations Weather Underground
 weather_stations = [
     {
         "id_station": "ILAMAD25",
-        "name": "La Madeleine",
-        "latitude": 50.659,
-        "longitude": 2.877,
-        "elevation": 23,
-        "city": "La Madeleine",
-        "state": "France",
-        "hardware": "other",
-        "software": "EasyWeatherPro_V5.1.6"    
+        "station_info": {
+            "name": "La Madeleine",
+            "latitude": 50.659,
+            "longitude": 2.877,
+            "elevation": 23,
+            "city": "La Madeleine",
+            "state": "France",
+            "type": None,
+            "hardware": "other",
+            "software": "EasyWeatherPro_V5.1.6",
+            "license": {
+                "license": None,
+                "url": None,
+                "sources": None,
+                "metadonnees": None
+            }
+            
+        }
     },
     {
         "id_station": "IICHTE19",
-        "name": "WeerstationBS",
-        "latitude": 51.092,
-        "longitude": 2.999,
-        "elevation": 15,
-        "city": "Ichtegem",
-        "state": "Belgium",
-        "hardware": "other",
-        "software": "EasyWeatherV1.6.6"    
-    }    
+        "station_info": {
+            "name": "WeerstationBS",
+            "latitude": 51.092,
+            "longitude": 2.999,
+            "elevation": 15,
+            "city": "Ichtegem",
+            "state": "Belgium",
+            "type": None,
+            "hardware": "other",
+            "software": "EasyWeatherV1.6.6",
+            "license": {
+                "license": None,
+                "url": None,
+                "sources": None,
+                "metadonnees": None
+            }
+        }
+    }
 ]
 
 stations.extend(weather_stations)
-
-# %%
-# Convertir station en format JSON
-
-stations_len = len(stations)
-
-stations_json = json.dumps(stations, indent=4)
-
-s3_file_key = "data_transformed/stations.json"
-
-# Télécharger le fichier sur S3
-s3_client.put_object(Body=stations_json, Bucket=bucket_name, Key=s3_file_key)
-
-print(f"Le fichier stations JSON a été téléchargé sur le bucket S3 : {bucket_name}/{s3_file_key}")
-print(f"Il contient: {stations_len} documents")
 
 # %% [markdown]
 # # HOURLY DATA
@@ -113,23 +117,10 @@ def load_airbyte_data_from_s3(bucket_name: str, file_key: str) -> pd.DataFrame:
     - pd.DataFrame: Le DataFrame contenant les données extraites sous "_airbyte_data".
     """
     s3_client = boto3.client("s3")
-    
-    # Télécharger le fichier depuis S3
     response = s3_client.get_object(Bucket=bucket_name, Key=file_key)
-    
-    # Lire le contenu et décoder en UTF-8
     json_content = response["Body"].read().decode("utf-8")
-    
-    # Charger le JSON dans une liste d'objets Python
     data = [json.loads(line) for line in json_content.splitlines()]
-    
-    # Extraire les données imbriquées sous "_airbyte_data"
-    airbyte_data = [entry["_airbyte_data"] for entry in data]
-    
-    # Convertir cette liste en DataFrame
-    df = pd.DataFrame(airbyte_data)
-    
-    return df
+    return pd.DataFrame([entry["_airbyte_data"] for entry in data])
 
 
 # %%
@@ -511,16 +502,60 @@ infoclimat_data = infoclimat.to_dict(orient='records')
 
 hourly_data =  weather_fr_data + weather_be_data + infoclimat_data
 
-hourly_data_len = len(hourly_data)
-
-hourly_data_json = json.dumps(hourly_data, indent=4)
-
-s3_file_key = "data_transformed/hourly_data.json"
-
-# Télécharger le fichier sur S3
-s3_client.put_object(Body=hourly_data_json, Bucket=bucket_name, Key=s3_file_key)
-
-print(f"\nLe fichier hourly_data JSON a été téléchargé sur le bucket S3 : {bucket_name}/{s3_file_key}")
-print(f"Il contient: {hourly_data_len } documents")
+# %%
+# Structurer les données sous "weather_data"
+for doc in hourly_data:
+    doc["weather_data"] = {
+        "temperature": round(doc.pop("temperature", None),2),
+        "pressure": doc.pop("pressure", None),
+        "humidity": doc.pop("humidity", None),
+        "dew_point": round(doc.pop("dew_point", None),2),
+        "visibility": doc.pop("visibility", None),
+        "wind_speed": round(doc.pop("wind_speed", None),2),
+        "wind_gust": doc.pop("wind_gust", None),
+        "wind_direction": doc.pop("wind_direction", None),
+        "precip_1h": doc.pop("precip_1h", None),
+        "precip_3h": doc.pop("precip_3h", None),
+        "precip_accum": doc.pop("precip_accum", None),
+        "precip_rate": doc.pop("precip_rate", None),
+        "solar": doc.pop("solar", None),
+        "uv": doc.pop("uv", None),
+        "snow_depth": doc.pop("snow_depth", None),
+        "nebulosity": doc.pop("nebulosity", None),
+        "weather_wmo": doc.pop("weather_wmo", None)
+    }
 
 # %%
+# Transformer stations en un dictionnaire {id_station: station_info}
+stations_dict = {station["id_station"]: station for station in stations}
+
+# Fusionner les données des stations avec les relevés horaires
+final_weather_data = []
+for record in hourly_data:
+    station_info = stations_dict.get(record["id_station"], {}).get("station_info", {})
+
+    final_weather_record = {
+        "id_station": record["id_station"],
+        "station_info": station_info,
+        "datetime": record["datetime"],
+        "weather_data": record["weather_data"]
+    }
+    final_weather_data.append(final_weather_record)
+
+# %%
+# Remplacer les NaN par None dans weather_data
+for record in final_weather_data:
+    for key, value in record["weather_data"].items():
+        if isinstance(value, float) and np.isnan(value):  # Vérifier si c'est NaN
+            record["weather_data"][key] = None  # Remplacer par None
+
+# %%
+weather_data_json = json.dumps(final_weather_data, indent=4)
+
+s3_file_key = "data_transformed/weather_data.json"
+
+# Télécharger le fichier sur S3
+s3_client.put_object(Body=weather_data_json, Bucket=bucket_name, Key=s3_file_key)
+
+print(f"\nLe fichier weather_data JSON a été téléchargé sur le bucket S3 : {bucket_name}/{s3_file_key}")
+print(f"Il contient: {len(final_weather_data)} documents")
