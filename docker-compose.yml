@@ -66,9 +66,14 @@ services:
     command: >
       sh -c "
       poetry run python transform_data.py &&
-      poetry run python insert_data.py
+      poetry run python insert_data.py &&
+      poetry run pytest -v tests/test_integrity.py &&
+      poetry run pytest -v tests/test_replication.py &&
+      poetry run python data_accessibility.py
       "
+
     restart: no
+
 
 volumes:
   mongo_data1:

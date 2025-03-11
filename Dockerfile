@@ -1,19 +1,17 @@
-
 FROM python:3.13.0
 WORKDIR /app
 
-# Copie des fichiers pyproject.toml et poetry.lock
-COPY pyproject.toml poetry.lock ./
-
-# Installation de Poetry
+# Installer Poetry globalement
 RUN pip install poetry
 
-# Installation des dépendances à l'aide de Poetry
-RUN poetry install --no-root
+# Copier les fichiers de dépendances
+COPY pyproject.toml poetry.lock ./
 
-# Copie des scripts
+# Installer les dépendances du projet
+RUN poetry install --no-root --no-interaction
+
+# Copier le reste du code
 COPY transform_data.py .
 COPY insert_data.py .
-
-# Lancement du script
-CMD ["poetry", "run", "python", "transform_data.py && insert_data.py"]
+COPY data_accessibility.py .
+COPY tests/ tests/
