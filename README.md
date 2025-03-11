@@ -1,4 +1,7 @@
 # 🚀 Projet : Construire et Tester une Infrastructure de Données
+✨ Auteur : Maëva Beauvillain
+📅 Date de début : Février 2025
+📅 Dernière MAJ : 11 mars 2025
 
 ## 📌 Contexte
 GreenAndCoop, un fournisseur coopératif français d'électricité renouvelable, souhaite améliorer ses prévisions de demande d'électricité en intégrant des données météorologiques issues de nouvelles sources (stations météo amateurs et open-data). En tant que Data Engineer, ma mission est de construire un pipeline fiable permettant de collecter, transformer et stocker ces données dans MongoDB sur AWS.
@@ -18,11 +21,51 @@ GreenAndCoop, un fournisseur coopératif français d'électricité renouvelable,
 - **Base de données** : MongoDB
 
 ## Schema de la BDD
-La base contient deux collection : 
-- **stations** : 
-- **hourly_data** : 
 
-## Dictionnaire des données (hourly_data)
+```
+{
+    "id_station": "string",
+    "station_info": {
+        "name": "string",
+        "latitude": "double",
+        "longitude": "double",
+        "elevation": "int",
+        "city": "string",
+        "state": "string",
+        "type": "string",
+        "hardware": "string",
+        "software": "string",
+        "license": {
+            "license": "string",
+            "url": "string",
+            "source": "string",
+            "metadonnees": "string"
+        }
+    },
+    "datetime": "string",
+    "weather_data": {
+        "temperature": "double",
+        "pressure": "double",
+        "humidity": "int",
+        "dew_point": "double",
+        "visibility": "double",
+        "wind_speed": "double",
+        "wind_gust": "double",
+        "wind_direction": "double",
+        "precip_1h": "double",
+        "precip_3h": "double",
+        "precip_accum": "double",
+        "precip_rate": "double",
+        "solar": "double",
+        "uv": "int",
+        "snow_depth": "double",
+        "nebulosity": "double",
+        "weather_wmo": "double"
+    }
+}
+```
+
+## Dictionnaire des données
 | Champs           | Indic                          | Unité de mesure |
 |------------------|--------------------------------|------------------|
 | id_station       | id of the station              |                  |
@@ -75,6 +118,11 @@ Ce script transforme des données météorologiques extraites depuis des fichier
 ### 6. Conversion et sauvegarde sur S3
 - Les données transformées sont converties en JSON et sauvegardées dans un nouveau fichier dans le bucket S3.
 
+## 🔧 Infrastructure et Déploiement
+- **Docker** : L’ensemble des services, y compris MongoDB et les scripts de transformation, a été conteneurisé à l’aide de Docker Compose. Le fichier docker-compose.yml définit un replica set MongoDB ainsi qu’un service data_pipeline qui exécute les scripts Python.
+- **Réseau** : Tous les conteneurs sont connectés via un réseau Docker bridge. Les scripts de transformation interagissent avec MongoDB via un alias réseau interne.
 
-✨ Auteur : Maëva Beauvillain
-📅 Date de début : Février 2025
+## 🔍 Tests et Qualité des Données
+- **Vérification de l’intégrité** : Les données sont vérifiées à chaque étape du pipeline pour s’assurer que les champs requis sont présents, que les types de données sont corrects et que les valeurs manquantes sont gérées de manière appropriée.
+- **Tests automatisés** : Des tests unitaires et d’intégration ont été mis en place pour valider le schéma de la base de données et les transformations de données. Ces tests s’assurent que les indices sont correctement appliqués et que les performances sont optimales.
+- **Analyse des performances** : Des tests d’accessibilité ont été effectués pour mesurer les temps de réponse avec et sans index, afin de garantir un accès rapide aux données pour les Data Scientists.
