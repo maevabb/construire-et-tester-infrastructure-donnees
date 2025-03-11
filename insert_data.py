@@ -1,4 +1,5 @@
 #%%
+import os
 import boto3
 import json
 from pymongo import MongoClient
@@ -28,7 +29,8 @@ weather_data = load_json_from_s3(bucket_name, weather_data_file_key)
 
 #%%
 #Connexion à MongoDB
-client = MongoClient(host="13.39.110.243", port=27017) #connexion au serveur mongodb
+MONGO_URI = "mongodb://mongodb1:27017,mongodb2:27017,mongodb3:27017/?replicaSet=rs0"
+client = MongoClient(MONGO_URI) #connexion au serveur mongodb
 db = client["weather_db"]  # Nom de la base de données
 
 #%%
@@ -100,6 +102,10 @@ db.drop_collection("weather_data")
 db.create_collection("weather_data", **weather_data_schema)
 
 weather_data_collection = db["weather_data"] 
+
+# Création des index pour optimiser les recherches
+weather_data_collection.create_index([("id_station", 1)])  
+weather_data_collection.create_index([("datetime", 1)])
 
 #%%
 def insert_documents(collection, data, collection_name):
